@@ -22,11 +22,13 @@ const Rect crop(raw_cen_x - rad, raw_cen_y - rad, di, di);
 Mat raw_img, crop_img;
 
 /* dewarp image */
-const float dw_rows = rad * 1.0;	// <>
-const float dw_cols = 360 * 1.75;	// <>
-const float res_r = rad / dw_rows;
-const float res_c = 360 / dw_cols;
-Mat dw_img((int)dw_rows, (int)dw_cols, CV_8UC3);
+#define dw_hratio 1.f	// <>
+#define dw_wratio 1.75f	// <>
+const int dw_rows = rad * dw_hratio;
+const int dw_cols = 360 * dw_wratio;
+const float res_r = float(rad) / float(dw_rows);
+const float res_c = 360.0f / float(dw_cols);
+Mat dw_img(dw_rows, dw_cols, CV_8UC3);
 Mat gray_img, thres_img;
 
 
@@ -39,8 +41,8 @@ int numFrame = 0;
 
 /* ball detection */
 Mat diff_img[3];
-vector<vector<Point>> contours;
-vector<Vec4i> hierarchy;
+vector<Vec3f> circles;
+
 
 int main()
 {
@@ -75,27 +77,26 @@ int main()
 		split(dw_img, diff_img);
 		gray_img = diff_img[2];
 		
-		/* find red ball */
-		//cvtColor(dw_img, gray_img, COLOR_BGR2GRAY);
-		threshold(gray_img, thres_img, 130, 255, THRESH_BINARY);
-		findContours(thres_img, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
-		//drawContours(dw_img, contours, -1, Scalar(0, 255, 0), 2);
-
-		/* plot each point of contour */
-		//cout << "contours-> " << contours.size() << endl;
-		for (int i = 0; i < contours.size(); i++)
+		/* circle detect */
+		HoughCircles(gray_img, circles, HOUGH_GRADIENT, 1, 1200, 95, 15, 1, 30);
+		for (size_t i = 0; i < circles.size(); i++)
 		{
-			for (int j = 0; j < contours[i].size(); j++)
+			Vec3i c = circles[i];
+			Point center = Point(c[0], c[1]);
+			
+			if (c[1] > 50)
 			{
-				circle(dw_img, contours[i][j], 1, Scalar(0, 0, 255), -1);
+				circle(dw_img, center, 8, Scalar(0, 0, 255), -1);
+				cout << "[" << c[0] << ", " << c[1] << "]      \r";
 			}
 		}
+
 
 		video.write(dw_img);
 		imshow("Crop Image", crop_img);
 		imshow("Dewarping Image", dw_img);
-		// imshow("Gray Image", gray_img);
-		imshow("Threshold Image", thres_img);
+		//imshow("Gray Image", gray_img);
+		//imshow("Threshold Image", thres_img);
 
 		char c = (char)waitKey(1);
 		if (c == 'q')
